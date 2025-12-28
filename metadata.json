@@ -1,0 +1,7 @@
+{
+  "name": "VeriTrust AI: Deepfake & Misinformation Detection",
+  "description": "An advanced multimodal platform leveraging Gemini AI to verify text, images, and videos for deepfake manipulation and misinformation, providing explainable confidence scores and risk analysis.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
