@@ -5,11 +5,17 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // This injects the API_KEY from your Render/System environment into the app
+    // This makes process.env.API_KEY available inside your application code
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
   },
   server: {
-    port: 3000
+    host: '0.0.0.0',
+    port: Number(process.env.PORT) || 3000
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: Number(process.env.PORT) || 3000,
+    allowedHosts: true // Ensures Render's health checks can reach the service
   },
   build: {
     outDir: 'dist'
