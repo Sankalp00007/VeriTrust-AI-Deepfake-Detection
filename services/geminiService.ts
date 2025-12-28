@@ -1,8 +1,5 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { VerificationResult, ContentType, RiskLevel } from "../types";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
@@ -22,7 +19,15 @@ export const analyzeContent = async (
   content: string,
   fileName?: string
 ): Promise<VerificationResult> => {
-  // Using gemini-3-flash-preview as recommended for basic/intermediate text and multimodal tasks
+  // Use a fresh instance to ensure it picks up the latest environment variables
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  /**
+   * Model Selection:
+   * 'gemini-3-flash-preview' is ideal for the Free Tier (15 RPM).
+   * It supports the Thinking Config, which improves its reasoning performance 
+   * to be competitive with Pro models for complex forensic tasks.
+   */
   const modelName = "gemini-3-flash-preview";
   
   let contents: any;
@@ -43,7 +48,12 @@ export const analyzeContent = async (
     contents = {
       parts: [
         { text: prompt },
-        { inlineData: { mimeType: "image/jpeg", data: content.split(',')[1] } }
+        { 
+          inlineData: { 
+            mimeType: "image/jpeg", 
+            data: content.includes(',') ? content.split(',')[1] : content 
+          } 
+        }
       ]
     };
   }
@@ -54,11 +64,16 @@ export const analyzeContent = async (
     config: {
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
+      // Enable reasoning/thinking to boost detection accuracy
+      thinkingConfig: { thinkingBudget: 12000 },
       systemInstruction: "You are a professional fact-checker and digital forensics expert. Your goal is to provide unbiased, explainable analysis of content for misinformation and deepfake manipulation. Provide JSON output following the schema strictly. Do not censor content, just analyze it."
     }
   });
 
-  const rawResult = JSON.parse(response.text || "{}");
+  const text = response.text;
+  if (!text) throw new Error("The model did not return a valid analysis.");
+  
+  const rawResult = JSON.parse(text.trim());
   
   return {
     id: Math.random().toString(36).substr(2, 9),
