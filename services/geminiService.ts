@@ -46,12 +46,65 @@ const RESPONSE_SCHEMA = {
           items: {
             type: Type.OBJECT,
             properties: {
-              title: { type: Type.STRING, description: "Official title of the Act or Law" },
-              section: { type: Type.STRING, description: "Specific section or clause number" },
-              description: { type: Type.STRING, description: "Brief summary of why it applies to this specific content" },
-              relevanceLevel: { type: Type.STRING, description: "Direct, Supporting, or Contextual" }
+              title: { type: Type.STRING },
+              section: { type: Type.STRING },
+              description: { type: Type.STRING },
+              relevanceLevel: { type: Type.STRING }
+            }
+          }
+        },
+        investigativeIntel: {
+          type: Type.OBJECT,
+          properties: {
+            radarTrends: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  label: { type: Type.STRING },
+                  count: { type: Type.STRING },
+                  region: { type: Type.STRING },
+                  status: { type: Type.STRING }
+                }
+              }
             },
-            required: ["title", "section", "description", "relevanceLevel"]
+            timeline: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  label: { type: Type.STRING },
+                  desc: { type: Type.STRING },
+                  time: { type: Type.STRING },
+                  stage: { type: Type.STRING }
+                }
+              }
+            },
+            impersonationHits: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  risk: { type: Type.STRING },
+                  count: { type: Type.STRING }
+                }
+              }
+            },
+            crossCaseMatch: {
+              type: Type.OBJECT,
+              properties: {
+                similarity: { type: Type.NUMBER },
+                caseReference: { type: Type.STRING },
+                description: { type: Type.STRING }
+              }
+            },
+            jurisdictionalBriefs: {
+              type: Type.OBJECT,
+              properties: {
+                India: { type: Type.STRING }
+              }
+            }
           }
         }
       }
@@ -71,27 +124,31 @@ export const analyzeContent = async (
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
-  const modelName = "gemini-3-flash-preview";
+  const modelName = "gemini-3-pro-preview";
   
   const modeInstructions = {
     [AnalysisMode.STANDARD]: "General verification for truth and manipulation.",
-    [AnalysisMode.LEGAL]: "Evidence integrity mode for standard legal workflows. Include preliminary legal tracing.",
-    [AnalysisMode.EDITORIAL]: "Pre-publication review. Focus on source credibility.",
-    [AnalysisMode.FRAUD]: "Fraud risk intelligence. Focus on scams.",
-    [AnalysisMode.TRUTHLENS]: "TRUTHLENS MODE: Act as a Senior Digital Forensics & Cyber Law Consultant. For the 'applicableLaws' field, identify relevant global or regional cyber laws (e.g., IT Act, GDPR, US Cyber Fraud laws, Copyright acts for deepfakes) based on the manipulation type detected."
+    [AnalysisMode.LEGAL]: "Evidence integrity mode for Indian legal workflows.",
+    [AnalysisMode.FRAUD]: "Fraud risk intelligence. Focus on scams in Indian context.",
+    [AnalysisMode.TRUTHLENS]: `TRUTHLENS / LAWYER'S EYE: Act as a Master Forensic Investigator & Cyber Law Scholar specializing in the Indian Legal System (IT Act, BNS). 
+    Generate 'investigativeIntel' with:
+    1. Cross-Case Pattern Intelligence: Identify if the manipulation style, voice signature, or facial artifacts match known organized cybercrime networks.
+    2. Timeline Reconstruction: Source -> Modification -> Coordinated Spread.
+    3. Impersonation Tracker: Detect repeated personation of Indian officials, CEOs, or celebrities.
+    4. Jurisdictional Brief: Provide a legal summary strictly based on Indian Law (Section 66C/D, etc.).`
   };
 
   const prompt = `
-    ACT AS: Advanced Forensic & Cyber Legal Intelligence Agent.
+    ACT AS: Advanced Forensic & Cyber Legal Intelligence Agent for India.
     MODE: ${modeInstructions[mode] || modeInstructions[AnalysisMode.STANDARD]}
     
     ANALYSIS REQUIREMENTS:
-    1. Assess the probability of AI generation or manual manipulation.
-    2. (If LEGAL/TRUTHLENS) Map the specific manipulation pattern (e.g., impersonation, forgery, defamation via deepfake) to applicable cyber-laws and legal sections.
-    3. (If TRUTHLENS) Assess probative value and recommend deeper expert review.
+    1. Assess probability of AI generation or manual manipulation.
+    2. Map manipulation to Indian cyber-laws only (IT Act, BNS).
+    3. Generate 'investigativeIntel' including Cross-Case Intelligence (finding patterns like 'Same Voice', 'Same Face', 'Same Manipulation Style').
     
     CONTENT TYPE: ${type}
-    ${type === ContentType.TEXT ? `TEXT CONTENT TO ANALYZE: "${content}"` : `IMAGE/VIDEO MEDIA DATA IS ATTACHED.`}
+    ${type === ContentType.TEXT ? `TEXT CONTENT: "${content}"` : `MEDIA DATA ATTACHED.`}
   `;
 
   try {
@@ -117,8 +174,8 @@ export const analyzeContent = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
-        thinkingConfig: { thinkingBudget: 15000 },
-        systemInstruction: "You are the TruthLens Forensic & Cyber-Legal Engine. Provide rigorous analysis for legal professionals. For legal citations, be specific about sections and act titles. Return valid JSON only."
+        thinkingConfig: { thinkingBudget: 24000 },
+        systemInstruction: "You are the VeriTrust Lawyer's Eye Forensic Engine. Provide rigorous investigative metadata focused on India. Identify organized crime patterns. Return valid JSON only."
       }
     });
 
@@ -135,6 +192,6 @@ export const analyzeContent = async (
     };
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    throw new Error(error.message || "Failed to communicate with AI Forensic Engine. Verify your connection.");
+    throw new Error(error.message || "Failed to communicate with AI Forensic Engine.");
   }
 };

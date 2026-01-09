@@ -7,7 +7,8 @@ import {
   BookOpen, 
   LogOut,
   Info,
-  Scale
+  Scale,
+  Eye
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 import Dashboard from './views/Dashboard';
@@ -16,12 +17,13 @@ import Results from './views/Results';
 import Education from './views/Education';
 import ResponsibleAI from './views/ResponsibleAI';
 import TruthLens from './views/TruthLens';
+import LawyersEye from './views/LawyersEye';
 import Home from './views/Home';
 import Auth from './views/Auth';
 import { VerificationResult, UserStats, ContentType, RiskLevel, AnalysisMode, UserProfile } from './types';
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<'home' | 'dashboard' | 'verify' | 'results' | 'education' | 'responsible' | 'auth' | 'truthlens'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'dashboard' | 'verify' | 'results' | 'education' | 'responsible' | 'auth' | 'truthlens' | 'lawyers-eye'>('home');
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [lastResult, setLastResult] = useState<VerificationResult | null>(null);
@@ -61,7 +63,7 @@ const App: React.FC = () => {
     } else {
       setUserProfile(null);
       setUserStats({ totalVerifications: 0, highRiskCount: 0, history: [] });
-      if (['dashboard', 'verify', 'results', 'education', 'responsible', 'truthlens'].includes(activeView)) {
+      if (['dashboard', 'verify', 'results', 'education', 'responsible', 'truthlens', 'lawyers-eye'].includes(activeView)) {
         setActiveView('home');
       }
     }
@@ -85,14 +87,14 @@ const App: React.FC = () => {
           mode: item.mode as AnalysisMode || AnalysisMode.STANDARD,
           content: item.content,
           fakeProbability: item.fake_probability,
-          risk_level: item.risk_level as RiskLevel,
-          confidence_score: item.confidence_score,
+          riskLevel: item.risk_level as RiskLevel,
+          confidenceScore: item.confidence_score,
           reasoning: item.reasoning,
-          is_misinformation: item.is_misinformation,
-          origin_label: item.origin_label || 'Unknown',
+          isMisinformation: item.is_misinformation,
+          originLabel: item.origin_label || 'Unknown',
           fingerprint: item.fingerprint || 'Pending',
-          publish_risk: item.publish_risk || 0,
-          literacy_tip: item.literacy_tip || '',
+          publishRiskScore: item.publish_risk || 0,
+          literacyTip: item.literacy_tip || '',
           verificationHash: item.hash || ''
         }));
 
@@ -167,12 +169,20 @@ const App: React.FC = () => {
           {user && (
             <>
               {isLawyer && (
-                <button 
-                  onClick={() => setActiveView('truthlens')}
-                  className={`flex items-center gap-2 text-sm font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${activeView === 'truthlens' ? 'text-white bg-slate-900 shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
-                >
-                  <Scale size={16} /> TruthLens
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setActiveView('truthlens')}
+                    className={`flex items-center gap-2 text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${activeView === 'truthlens' ? 'text-white bg-slate-900 shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+                  >
+                    <Scale size={14} /> TruthLens
+                  </button>
+                  <button 
+                    onClick={() => setActiveView('lawyers-eye')}
+                    className={`flex items-center gap-2 text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${activeView === 'lawyers-eye' ? 'text-white bg-indigo-600 shadow-lg' : 'text-indigo-600 hover:bg-indigo-50'}`}
+                  >
+                    <Eye size={14} /> Lawyer's Eye
+                  </button>
+                </div>
               )}
               <button onClick={() => setActiveView('education')} className={`text-sm font-semibold px-4 py-2 rounded-lg ${activeView === 'education' ? 'text-blue-600 bg-blue-50' : 'text-slate-600'}`}>Awareness</button>
               <div className="h-6 w-px bg-slate-200 mx-2"></div>
@@ -202,7 +212,12 @@ const App: React.FC = () => {
           <aside className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col p-4 space-y-2 sticky top-20 h-[calc(100vh-5rem)]">
             <NavItem view="dashboard" icon={<LayoutDashboard size={20} />} label="My Dashboard" />
             <NavItem view="verify" icon={<FileSearch size={20} />} label="New Analysis" />
-            {isLawyer && <NavItem view="truthlens" icon={<Scale size={20} />} label="TruthLens Legal" />}
+            {isLawyer && (
+              <>
+                <NavItem view="truthlens" icon={<Scale size={20} />} label="TruthLens Legal" />
+                <NavItem view="lawyers-eye" icon={<Eye size={20} />} label="Lawyer's Eye" />
+              </>
+            )}
             <NavItem view="education" icon={<BookOpen size={20} />} label="Awareness" />
             <NavItem view="responsible" icon={<Info size={20} />} label="Ethics" />
           </aside>
@@ -221,6 +236,14 @@ const App: React.FC = () => {
               onComplete={handleVerificationComplete}
               lastResult={lastResult}
             />
+          )}
+          {activeView === 'lawyers-eye' && userProfile && (
+             <LawyersEye
+                userProfile={userProfile}
+                isLoggedIn={!!user}
+                onComplete={handleVerificationComplete}
+                lastResult={lastResult}
+             />
           )}
           {activeView === 'education' && user && <Education />}
           {activeView === 'responsible' && user && <ResponsibleAI />}

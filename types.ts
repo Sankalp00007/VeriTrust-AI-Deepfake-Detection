@@ -27,6 +27,20 @@ export interface ApplicableLaw {
   category: 'Fraud' | 'Privacy' | 'Defamation' | 'Identity' | 'Copyright' | 'Evidence';
 }
 
+export interface InvestigativeIntelligence {
+  radarTrends: Array<{ label: string; count: string; region: string; status: 'Monitor' | 'Alert' | 'Critical' }>;
+  timeline: Array<{ label: string; desc: string; time: string; stage: 'Authentic' | 'Manipulated' | 'Coordinated' }>;
+  impersonationHits: Array<{ name: string; risk: string; count: string }>;
+  crossCaseMatch?: {
+    similarity: number;
+    caseReference: string;
+    description: string;
+  };
+  jurisdictionalBriefs: {
+    [key: string]: string;
+  };
+}
+
 export interface VerificationResult {
   id: string;
   timestamp: number;
@@ -60,13 +74,14 @@ export interface VerificationResult {
   verificationHash: string;
   userEmail?: string;
   
-  // TruthLens Legal Specifics
+  // Lawyer's Eye / TruthLens Specifics
   legalAssessment?: {
     probativeValue: 'Low' | 'Moderate' | 'High';
     courtReadySummary: string;
     forensicRedFlags: string[];
     expertRecommendation: string;
     applicableLaws: ApplicableLaw[];
+    investigativeIntel?: InvestigativeIntelligence;
   };
 }
 
