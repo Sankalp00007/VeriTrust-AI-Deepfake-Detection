@@ -37,7 +37,7 @@ const RESPONSE_SCHEMA = {
     legalAssessment: {
       type: Type.OBJECT,
       properties: {
-        probativeValue: { type: Type.STRING },
+        probativeValue: { type: Type.STRING, description: "Low, Moderate, or High" },
         courtReadySummary: { type: Type.STRING },
         forensicRedFlags: { type: Type.ARRAY, items: { type: Type.STRING } },
         expertRecommendation: { type: Type.STRING },
@@ -49,10 +49,12 @@ const RESPONSE_SCHEMA = {
               title: { type: Type.STRING },
               section: { type: Type.STRING },
               description: { type: Type.STRING },
-              relevanceLevel: { type: Type.STRING }
-                }
-              }
+              relevanceLevel: { type: Type.STRING },
+              category: { type: Type.STRING }
             },
+            required: ["title", "section", "description", "relevanceLevel", "category"]
+          }
+        },
         investigativeIntel: {
           type: Type.OBJECT,
           properties: {
@@ -107,10 +109,23 @@ const RESPONSE_SCHEMA = {
             }
           }
         }
-      }
+      },
+      required: ["probativeValue", "courtReadySummary", "forensicRedFlags", "applicableLaws"]
     }
   },
-  required: ["fakeProbability", "riskLevel", "confidenceScore", "reasoning", "isMisinformation", "originLabel", "fingerprint", "publishRiskScore", "literacyTip", "verificationHash"]
+  required: [
+    "fakeProbability", 
+    "riskLevel", 
+    "confidenceScore", 
+    "reasoning", 
+    "isMisinformation", 
+    "originLabel", 
+    "fingerprint", 
+    "publishRiskScore", 
+    "literacyTip", 
+    "verificationHash",
+    "legalAssessment"
+  ]
 };
 
 export const analyzeContent = async (
@@ -119,38 +134,42 @@ export const analyzeContent = async (
   mode: AnalysisMode = AnalysisMode.STANDARD,
   fileName?: string
 ): Promise<VerificationResult> => {
-  if (!content) {
-    throw new Error("Analysis failed: No content provided to engine.");
+  if (!content || typeof content !== 'string') {
+    throw new Error("Analysis failed: Content is missing or invalid.");
   }
 
-  // Use process.env.API_KEY directly for initialization as per guidelines.
-  // This value is injected at build time by Vite.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const modelName = "gemini-2.5-flash-preview-09-2025";
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === "undefined") {
+    throw new Error("API Key is missing. Ensure the API_KEY variable is correctly configured in your environment.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const modelName = "gemini-3-flash-preview";
   
   const modeInstructions = {
     [AnalysisMode.STANDARD]: "General verification for truth and manipulation.",
     [AnalysisMode.LEGAL]: "Evidence integrity mode for Indian legal workflows.",
-    [AnalysisMode.FRAUD]: "Fraud risk intelligence. Focus on scams in Indian context.",
-    [AnalysisMode.TRUTHLENS]: `TRUTHLENS / LAWYER'S EYE: Act as a Master Forensic Investigator & Cyber Law Scholar specializing in the Indian Legal System (IT Act, BNS). 
-    Generate 'investigativeIntel' with:
-    1. Cross-Case Pattern Intelligence: Identify if the manipulation style, voice signature, or facial artifacts match known organized cybercrime networks.
-    2. Timeline Reconstruction: Source -> Modification -> Coordinated Spread.
-    3. Impersonation Tracker: Detect repeated personation of Indian officials, CEOs, or celebrities.
-    4. Jurisdictional Brief: Provide a legal summary strictly based on Indian Law (Section 66C/D, etc.).`
+    [AnalysisMode.EDITORIAL]: "Editorial fact-checking and source verification.",
+    [AnalysisMode.FRAUD]: "Fraud risk intelligence. Focus on scams and financial manipulation.",
+    [AnalysisMode.TRUTHLENS]: `TRUTHLENS / LAWYER'S EYE: Act as a Master Forensic Investigator & Cyber Law Scholar specializing in the Indian Legal System (IT Act 2000, BNS). 
+    YOU MUST:
+    1. Identify specific sections of the Indian IT Act (e.g. 66C, 66D, 67A) relevant to the evidence.
+    2. Provide 'investigativeIntel' including Cross-Case Pattern Intelligence.
+    3. Generate a 'courtReadySummary' that a lawyer could use in a deposition.
+    4. Highlight forensic red flags like pixel inconsistency, adversarial noise, or synthetic texture markers in images.`
   };
 
   const prompt = `
-    ACT AS: Advanced Forensic & Cyber Legal Intelligence Agent for India.
+    ACT AS: Advanced Forensic & Cyber Legal Intelligence Agent for the Indian Judiciary.
     MODE: ${modeInstructions[mode] || modeInstructions[AnalysisMode.STANDARD]}
     
     ANALYSIS REQUIREMENTS:
     1. Assess probability of AI generation or manual manipulation.
-    2. Map manipulation to Indian cyber-laws only (IT Act, BNS).
-    3. Generate 'investigativeIntel' including Cross-Case Intelligence (finding patterns like 'Same Voice', 'Same Face', 'Same Manipulation Style').
+    2. For IMAGES: Look for sub-pixel anomalies, JPEG compression artifacts, and GAN-specific lighting inconsistencies.
+    3. For LEGAL: Citations MUST be based on the Indian Information Technology Act 2000 and the Bhartiya Nyaya Sanhita (BNS).
     
     CONTENT TYPE: ${type}
-    ${type === ContentType.TEXT ? `TEXT CONTENT: "${content}"` : `MEDIA DATA ATTACHED.`}
+    ${type === ContentType.TEXT ? `TEXT CONTENT TO ANALYZE: "${content}"` : `MEDIA ASSET ATTACHED. ANALYZE FOR DEEPFAKE MARKERS.`}
   `;
 
   try {
@@ -161,10 +180,19 @@ export const analyzeContent = async (
     };
 
     if (type !== ContentType.TEXT) {
-      const base64Data = content.includes('base64,') ? content.split('base64,')[1] : content;
+      let base64Data = content;
+      let mimeType = type === ContentType.IMAGE ? "image/jpeg" : "video/mp4";
+
+      if (content.includes('base64,')) {
+        const parts = content.split('base64,');
+        base64Data = parts[1];
+        const match = parts[0].match(/data:(.*?);/);
+        if (match) mimeType = match[1];
+      }
+      
       contents.parts.push({ 
         inlineData: { 
-          mimeType: type === ContentType.IMAGE ? "image/jpeg" : "video/mp4", 
+          mimeType: mimeType, 
           data: base64Data 
         } 
       });
@@ -176,12 +204,15 @@ export const analyzeContent = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
-        thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction: "You are the VeriTrust Lawyer's Eye Forensic Engine. Provide rigorous investigative metadata focused on India. Identify organized crime patterns. Return valid JSON only."
+        systemInstruction: "You are the VeriTrust AI Forensic Engine. You provide rigorous, evidence-based analysis for legal and security professionals in India. You must strictly follow the JSON schema provided and include detailed legal citations in legal modes. Do not return any text outside of the JSON."
       }
     });
 
-    const responseText = response.text || "{}";
+    const responseText = response.text;
+    if (!responseText) {
+      throw new Error("The AI model returned an empty response. Verify your API key and input content.");
+    }
+
     const result = JSON.parse(responseText);
     
     return {
@@ -194,6 +225,11 @@ export const analyzeContent = async (
     };
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    throw new Error(error.message || "Failed to communicate with AI Forensic Engine.");
+    
+    if (error.message?.includes("API key") || error.status === 401) {
+      throw new Error("Authentication Failed: The provided Gemini API Key is invalid or has insufficient permissions.");
+    }
+    
+    throw new Error(error.message || "Forensic engine communication failed. Please ensure your image is clear and try again.");
   }
 };

@@ -50,11 +50,28 @@ const App: React.FC = () => {
     setUser(currentUser);
     
     if (currentUser) {
-      const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
-      if (error && error.code !== 'PGRST116') {
-        console.error("Profile Fetch Error:", error.message);
+      // Use role from user_metadata if available, fallback to 'user'
+      const sessionRole = currentUser.user_metadata?.role || 'user';
+      
+      try {
+        // Fetch profile with simplified logic to avoid RLS recursion
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('id, email, role')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn("Profile fetch error (possibly RLS recursion):", error.message);
+          setUserProfile({ id: currentUser.id, email: currentUser.email || '', role: sessionRole, created_at: new Date().toISOString() });
+        } else if (profile) {
+          setUserProfile(profile);
+        } else {
+          setUserProfile({ id: currentUser.id, email: currentUser.email || '', role: sessionRole, created_at: new Date().toISOString() });
+        }
+      } catch (err) {
+        setUserProfile({ id: currentUser.id, email: currentUser.email || '', role: sessionRole, created_at: new Date().toISOString() });
       }
-      setUserProfile(profile || { role: currentUser.user_metadata?.role || 'user' });
       
       fetchUserHistory(currentUser.id);
       if (activeView === 'auth') {
@@ -92,10 +109,10 @@ const App: React.FC = () => {
           reasoning: item.reasoning,
           isMisinformation: item.is_misinformation,
           originLabel: item.origin_label || 'Unknown',
-          fingerprint: item.fingerprint || 'Pending',
-          publishRiskScore: item.publish_risk || 0,
+          fingerprint: item.id.substring(0, 10), // Fallback
+          publishRiskScore: 0,
           literacyTip: item.literacy_tip || '',
-          verificationHash: item.hash || ''
+          verificationHash: ''
         }));
 
         setUserStats({
@@ -105,7 +122,7 @@ const App: React.FC = () => {
         });
       }
     } catch (err: any) {
-      console.error("Error fetching history:", err.message || err);
+      console.error("Error fetching history:", err.message);
     }
   };
 
@@ -114,6 +131,7 @@ const App: React.FC = () => {
     
     if (user) {
       try {
+        // Removed 'hash', 'fingerprint', 'publish_risk' as they were causing schema errors
         const { error } = await supabase.from('verifications').insert({
           user_id: user.id,
           type: result.type,
@@ -125,16 +143,16 @@ const App: React.FC = () => {
           reasoning: result.reasoning,
           is_misinformation: result.isMisinformation,
           origin_label: result.originLabel,
-          fingerprint: result.fingerprint,
-          publish_risk: result.publishRiskScore,
-          literacy_tip: result.literacyTip,
-          hash: result.verificationHash
+          literacy_tip: result.literacyTip
         });
         
-        if (error) throw error;
-        await fetchUserHistory(user.id);
+        if (error) {
+          console.error("Supabase insert failed:", error.message);
+        } else {
+          await fetchUserHistory(user.id);
+        }
       } catch (err: any) {
-        console.error("Critical error saving verification:", err.message || err);
+        console.error("Critical error saving verification:", err.message);
       }
     }
     
