@@ -123,8 +123,10 @@ export const analyzeContent = async (
     throw new Error("Analysis failed: No content provided to engine.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
-  const modelName = "gemini-2.5-flash";
+  // Robustly handle API key access to prevent 'process is not defined' crashes
+  const apiKey = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : "";
+  const ai = new GoogleGenAI({ apiKey });
+  const modelName = "gemini-3-flash-preview";
   
   const modeInstructions = {
     [AnalysisMode.STANDARD]: "General verification for truth and manipulation.",
@@ -174,7 +176,7 @@ export const analyzeContent = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
-        thinkingConfig: { thinkingBudget: 24000 },
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction: "You are the VeriTrust Lawyer's Eye Forensic Engine. Provide rigorous investigative metadata focused on India. Identify organized crime patterns. Return valid JSON only."
       }
     });
