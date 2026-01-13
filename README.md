@@ -133,3 +133,17 @@ Legal evidence screening
 Journalism & media verification
 
 Digital fraud and impersonation detection
+
+💼 Business Model (How It Scales)
+
+TruthLens is designed to be sustainable and scalable:
+
+Freemium access for general users
+
+Subscription plans for lawyers, media houses, and institutions
+
+API licensing for platforms and organizations
+
+Government and NGO partnerships for cyber crime and public safety initiatives
+
+This model ensures broad access while enabling long-term growth and impact.
