@@ -147,7 +147,9 @@ export const analyzeContent = async (
   const modelName = "gemini-3-flash-preview";
   
   const modeInstructions = {
-    [AnalysisMode.STANDARD]: "General verification for truth and manipulation.",
+    [AnalysisMode.STANDARD]: `General verification mode. Analyze for truth, deepfake markers, and fraud patterns. 
+    EVEN IN THIS MODE, you must provide 'applicableLaws' and 'fraudRisk' in the JSON so that our legal matching engine can recommend the right lawyer to the user. 
+    Focus on common Indian IT Act sections for scams or identity theft.`,
     [AnalysisMode.LEGAL]: "Evidence integrity mode for Indian legal workflows.",
     [AnalysisMode.EDITORIAL]: "Editorial fact-checking and source verification.",
     [AnalysisMode.FRAUD]: "Fraud risk intelligence. Focus on scams and financial manipulation.",

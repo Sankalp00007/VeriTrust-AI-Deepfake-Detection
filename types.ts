@@ -27,6 +27,18 @@ export interface ApplicableLaw {
   category: 'Fraud' | 'Privacy' | 'Defamation' | 'Identity' | 'Copyright' | 'Evidence';
 }
 
+export interface LawyerProfile {
+  id: string;
+  name: string;
+  specialization: string;
+  experience: string;
+  location: string;
+  image: string;
+  verified: boolean;
+  activeNow: boolean;
+  matchingStatutes: string[];
+}
+
 export interface InvestigativeIntelligence {
   radarTrends: Array<{ label: string; count: string; region: string; status: 'Monitor' | 'Alert' | 'Critical' }>;
   timeline: Array<{ label: string; desc: string; time: string; stage: 'Authentic' | 'Manipulated' | 'Coordinated' }>;
