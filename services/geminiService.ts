@@ -50,9 +50,9 @@ const RESPONSE_SCHEMA = {
               section: { type: Type.STRING },
               description: { type: Type.STRING },
               relevanceLevel: { type: Type.STRING }
-            }
-          }
-        },
+                }
+              }
+            },
         investigativeIntel: {
           type: Type.OBJECT,
           properties: {
@@ -123,10 +123,16 @@ export const analyzeContent = async (
     throw new Error("Analysis failed: No content provided to engine.");
   }
 
-  // Robustly handle API key access to prevent 'process is not defined' crashes
+  // Ensure process.env.API_KEY is available and properly handled
   const apiKey = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : "";
+  
+  if (!apiKey) {
+    console.error("API_KEY environment variable is missing.");
+  }
+
   const ai = new GoogleGenAI({ apiKey });
-  const modelName = "gemini-3-flash-preview";
+  // Updated to gemini-2.5-flash as requested
+  const modelName = "gemini-2.5-flash";
   
   const modeInstructions = {
     [AnalysisMode.STANDARD]: "General verification for truth and manipulation.",
@@ -176,6 +182,7 @@ export const analyzeContent = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
+        // Set thinking budget to 0 for gemini-2.5-flash to prioritize speed and stability on free tier
         thinkingConfig: { thinkingBudget: 0 },
         systemInstruction: "You are the VeriTrust Lawyer's Eye Forensic Engine. Provide rigorous investigative metadata focused on India. Identify organized crime patterns. Return valid JSON only."
       }
@@ -194,6 +201,7 @@ export const analyzeContent = async (
     };
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
+    // Graceful error message to UI instead of crashing
     throw new Error(error.message || "Failed to communicate with AI Forensic Engine.");
   }
 };
