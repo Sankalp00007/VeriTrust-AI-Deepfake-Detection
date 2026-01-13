@@ -124,7 +124,7 @@ export const analyzeContent = async (
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
-  const modelName = "gemini-3-pro-preview";
+  const modelName = "gemini-2.5-flash";
   
   const modeInstructions = {
     [AnalysisMode.STANDARD]: "General verification for truth and manipulation.",
